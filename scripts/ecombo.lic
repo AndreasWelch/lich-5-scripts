@@ -1,0 +1,322 @@
+=begin
+
+  This script will do UCS fighting for you!
+  It will start with JAB and take advantage of Tier Up opportunities.
+
+  Once it has achieved Tier 3, it will always continue with your specified Tier attack.
+
+  It will attempt to intelligently use mstirke, weapon skills, adjust for height, account for krynch,
+  and will exit if your target is dead or you lose your target.
+
+  Setup:
+    ;ecombo tierup <jab/punch/grapple/kick>
+    ;ecombo tier3 <punch/grapple/kick>
+    ;ecombo aim=<on/off>
+    ;ecombo aim <body parts>
+    ;ecombo toohigh <body parts>
+    ;ecombo help
+
+  Usage:
+    ;ecombo [target]
+
+        author: Elanthia Online
+  contributors: Takoa, Drafix, Dissonance
+          game: Gemstone
+          tags: UCS, Combat, Fighting, Tiered Attacks
+      required: Lich >= 5.12.10
+       version: 4.0
+
+  Changelog:
+  v1.0.0 - Initial Release of fork.
+    Forked from Drafix's original combo script with updates from Takoa
+
+=end
+
+module ECombo
+  class << self
+    attr_accessor :action, :position, :hit, :debug, :action_counter, :mstrike_taken, :target, :location
+  end
+
+  def self.load_settings
+    # Load all settings - tierup and tier3 must be explicitly set by user
+    CharSettings['aim'] ||= false
+    CharSettings['aim_location'] ||= []
+    CharSettings['toohigh'] ||= nil
+  end
+
+  def self.display_current_settings
+    Lich::Messaging.msg('info', "Current ecombo settings:")
+    Lich::Messaging.msg('info', "  tierup: #{CharSettings['tierup']}")
+    Lich::Messaging.msg('info', "  tier3: #{CharSettings['tier3']}")
+    Lich::Messaging.msg('info', "  aim: #{CharSettings['aim']}")
+    Lich::Messaging.msg('info', "  aim_location: #{CharSettings['aim_location'].empty? ? 'none' : CharSettings['aim_location'].join(', ')}")
+    Lich::Messaging.msg('info', "  toohigh: #{CharSettings['toohigh'] || 'none'}")
+  end
+
+  def self.change_action(action)
+    self.action = action
+    Lich::Messaging.msg('debug', "Action changed to #{self.action}") if self.debug
+  end
+
+  def self.change_position(position)
+    self.position = position
+    Lich::Messaging.msg('debug', "Position Changed to #{self.position}") if self.debug
+  end
+
+  def self.handle_command_arguments
+    command = Script.current.vars[1]
+    return unless command
+
+    case command
+    when /^tier(up|3)$/
+      CharSettings["tier#{$1}"] = Script.current.vars[2]
+      Lich::Messaging.msg('info', "You have specified #{CharSettings["tier#{$1}"]} as your Tier#{$1} attack")
+      Lich::Messaging.msg('info', "You can change this setting by typing ;#{Script.current.name} tier#{$1} <jab/punch/grapple/kick>")
+      exit
+    when /^aim=(on|off)$/
+      option = Regexp.last_match(1)
+      CharSettings['aim'] = option == 'on'
+      Lich::Messaging.msg('info', "Turning aiming #{option}")
+      exit
+    when /^toohigh$|cannot aim that high/
+      if Script.current.vars[2..-1].length.zero?
+        Lich::Messaging.msg('warn', "No body parts specified")
+        Lich::Messaging.msg('warn', "Try ;#{Script.current.name} help")
+        Lich::Messaging.msg('warn')
+        exit
+      end
+      CharSettings['toohigh'] = Script.current.vars[2..-1].join(' ')
+      Lich::Messaging.msg('info', "Now aiming at:")
+      Lich::Messaging.msg('info', CharSettings['toohigh'])
+      Lich::Messaging.msg('info', "if you can't reach your aiming location")
+      exit
+    when /^aim$/
+      unless CharSettings['aim']
+        Lich::Messaging.msg('warn', "Aiming is turned off.")
+        Lich::Messaging.msg('warn', "Please enable aiming before using this option")
+        Lich::Messaging.msg('warn', ";#{Script.current.name} aim=<on/off>")
+        Lich::Messaging.msg('warn')
+        exit
+      end
+      if Script.current.vars[2..-1].length.zero?
+        Lich::Messaging.msg('warn', "No body parts specified")
+        Lich::Messaging.msg('warn', "Try ;#{Script.current.name} help")
+        Lich::Messaging.msg('warn')
+        exit
+      end
+      CharSettings['aim_location'].clear
+      Script.current.vars[2..-1].join(' ').gsub(', ', ',').split(',').reverse.each do |location|
+        CharSettings['aim_location'].push(location)
+      end
+      Lich::Messaging.msg('info', "Now aiming in this order (one body part per line):")
+      Lich::Messaging.msg('info', CharSettings['aim_location'].reverse.to_s)
+      Lich::Messaging.msg('info')
+      Lich::Messaging.msg('info', "Note: Remember to use a comma to seperate the body parts")
+      Lich::Messaging.msg('info')
+      exit
+    when /^help$/
+      Lich::Messaging.msg('info', "Setup your tierup and tier3 attacks by typing:  ")
+      Lich::Messaging.msg('info')
+      Lich::Messaging.msg('info', ";#{Script.current.name} tierup <jab/punch/grapple/kick>")
+      Lich::Messaging.msg('info', ";#{Script.current.name} tier3 <punch/grapple/kick>")
+      Lich::Messaging.msg('info')
+      Lich::Messaging.msg('info', ";#{Script.current.name} aim=<on/off>")
+      Lich::Messaging.msg('info', ";#{Script.current.name} aim <body parts>")
+      Lich::Messaging.msg('info', ";#{Script.current.name} toohigh <body parts>")
+      Lich::Messaging.msg('info', " ex: ;#{Script.current.name} aim head, neck, right arm, chest")
+      Lich::Messaging.msg('info', " <toohigh> setting used for smaller races if you can't reach your primary aim")
+      Lich::Messaging.msg('info')
+      exit
+    end
+  end
+
+  def self.ensure_required_settings
+    unless CharSettings['tierup']
+      Lich::Messaging.msg('warn')
+      Lich::Messaging.msg('warn', 'tierup not configured.')
+      display_current_settings
+      Lich::Messaging.msg('warn')
+      Lich::Messaging.msg('warn', "Please set using: ;#{Script.current.name} tierup <jab/punch/grapple/kick>")
+      Lich::Messaging.msg('warn', '[Recommended: jab for easy tier-up]')
+      exit
+    end
+
+    unless CharSettings['tier3']
+      Lich::Messaging.msg('warn')
+      Lich::Messaging.msg('warn', 'tier3 not configured.')
+      display_current_settings
+      Lich::Messaging.msg('warn')
+      Lich::Messaging.msg('warn', "Please set using: ;#{Script.current.name} tier3 <punch/grapple/kick>")
+      exit
+    end
+  end
+
+  def self.resolve_target(raw_target)
+    return nil if raw_target.nil?
+
+    return GameObj.npcs.find { |npc| "##{npc.id}" == raw_target.to_s } if raw_target.to_s.include?('#')
+
+    raw_target
+  end
+
+  def self.acquire_target
+    if Script.current.vars.empty?
+      put 'target random'
+      line = get until line =~ /^You are now targeting <pushBold\/?>an? <a exist="(\-?\d+)" noun=".*>\.$|^Could not find a valid target\./
+    else
+      put "target #{Script.current.vars[0]}"
+      line = get until line =~ /^Usage|^You are now targeting <pushBold\/?>an? <a exist="(\-?\d+)" noun=".*>\.$|^You do not have a target\.|You can only target creatures and players\.|You can't target/
+    end
+    status_tags
+    GameObj[$1]
+  end
+
+  def self.ensure_evardis(target)
+    return unless Spell[506].known?
+
+    if !Spell[506].active? && checkmana(6)
+      Spell[506].cast('')
+    elsif Spell[506].timeleft < 0.08 && checkmana(6)
+      Spell[506].cast('')
+    end
+
+    target
+  end
+
+  def self.ready_stance
+    fput 'stand' unless standing?
+    fput 'stance offensive' unless percentstance.zero?
+  end
+
+  def self.quickstrike_if_ready
+    return unless checkstamina > 40
+
+    fput 'qstrike -2'
+  end
+
+  def self.use_fury_if_ready(target)
+    return false unless Weapon.known?('Fury') && Weapon.available?('Fury')
+    return false if Spell[9699].active? || target.status =~ /dead/
+
+    Lich::Messaging.msg('speech', 'Lets get Furious!') # TODO Does this have any value?
+    waitrt?
+    return false unless checkstamina > 12
+
+    pause_script 'spin_kick' if running?('spin_kick')
+    ready_stance
+    fput "weapon fury ##{target.id}"
+    while (line = get)
+      break if line =~ /Distracted|recentering yourself|Your furious assault|awkward proposition|little bit late|still stunned|too injured|what?|already dead|could not find|seconds/i
+      break if target.status =~ /dead/ || !GameObj.npcs.find { |npc| "##{npc.id}" == "##{target.id}" }
+    end
+    unpause_script 'spin_kick'
+    true
+  end
+
+  def self.perform_attack(raw_target)
+    target = resolve_target(raw_target)
+    return if target.nil?
+
+    if target.status =~ /dead/
+      waitrt?
+      fput 'stance defensive' if checkstance != 'defensive'
+      exit
+    end
+
+    ensure_evardis(target)
+    ready_stance
+
+    waitrt?
+    waitcastrt?
+
+    return if use_fury_if_ready(target)
+
+    quickstrike_if_ready
+    if CharSettings['aim'] && self.action !~ /jab/
+      put "#{self.action} ##{target.id} #{self.location}"
+    else
+      put "#{self.action} ##{target.id}"
+    end
+  end
+
+  def self.process_combat_line(line, target, locations)
+    if self.mstrike_taken
+      line = reget(10, /You have (decent|good|excellent) positioning|.* = .* d100: .* = \-?(\d+)$|A (hit)!$|Strike leaves foe vulnerable to a followup (.*) attack!|[wW]ait (\d+) sec.*|^What were you referring to?$/)[-1]
+      self.mstrike_taken = false
+    end
+
+    case line
+    when /You have (decent|good|excellent) positioning/
+      change_position($1)
+    when /.* = .* d100: .* = \-?(\d+)$|A (hit)!$/
+      self.action_counter[self.action] += 1
+      endroll = Regexp.last_match(1)
+      self.hit = endroll.to_i > 100 || endroll.to_i.zero?
+      Lich::Messaging.msg('debug', [self.hit, endroll.to_i].to_s) if self.debug
+      change_action('jab') if self.position != 'excellent' && self.hit
+      change_action(CharSettings['tier3']) if (self.position == 'excellent' || self.position == 'good') && self.action != CharSettings['tier3']
+    when /Strike leaves foe vulnerable to a followup (.*) attack!/
+      change_action(Regexp.last_match(1))
+      Script.current.clear
+      perform_attack(target)
+    when /You fail to find an opening for your strike\./
+      perform_attack(target)
+    when /is already missing that!|does not have a/
+      self.location = locations.pop
+      put 'aim clear' unless self.location
+      perform_attack(target)
+    when /You cannot aim that high!/
+      self.location = CharSettings['toohigh']
+      perform_attack(target)
+      locations.replace(CharSettings['aim_location'].dup)
+      self.location = locations.pop
+    when /Roundtime:/
+      Lich::Messaging.msg('debug', 'RT msg') if self.debug
+      perform_attack(target)
+    when /[wW]ait (\d+) sec.*/
+      Lich::Messaging.msg('debug', 'WAIT msg') if self.debug
+      sleep Regexp.last_match(1).to_i - 1
+      Script.current.clear
+      perform_attack(target)
+    when /^Try standing up first\.$/
+      fput 'stand'
+      perform_attack(target)
+    when /You currently have no valid target\.  You will need to specify one\.|^It looks like somebody already did the job for you\.$|^What were you referring to\?|Sorry,|You can't do that while entangled in a web|You are still stunned|You are unable to muster the will to attack anything\./
+      return :stop
+    end
+
+    nil
+  end
+end
+
+ECombo.load_settings
+ECombo.handle_command_arguments
+ECombo.ensure_required_settings
+
+put 'aim clear'
+fput 'stance off'
+ECombo.action = CharSettings['tierup']
+ECombo.position = 'decent'
+ECombo.hit = true
+ECombo.debug = false
+ECombo.action_counter = Hash.new(0)
+ECombo.mstrike_taken = false
+status_tags
+
+ECombo.target = ECombo.acquire_target
+
+if ECombo.target.nil?
+  Lich::Messaging.msg('warn', 'No target found.  Exiting.')
+  exit
+end
+
+locations = CharSettings['aim_location'].dup
+ECombo.location = locations.pop
+ECombo.change_action(CharSettings['tier3']) if Spell[9620].active?
+ECombo.perform_attack(ECombo.target)
+
+while (line = get)
+  break if ECombo.process_combat_line(line, ECombo.target, locations) == :stop
+end
+
+fput 'stance defensive'
