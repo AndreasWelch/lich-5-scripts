@@ -24,7 +24,7 @@
           game: Gemstone
           tags: UCS, Combat, Fighting, Tiered Attacks
       required: Lich >= 5.12.10
-       version: 4.0
+       version: 1.0.0
 
   Changelog:
   v1.0.0 - Initial Release of fork.
@@ -33,10 +33,45 @@
 =end
 
 module ECombo
+  # Collection of class-level attributes for managing combat state
   class << self
-    attr_accessor :action, :position, :hit, :debug, :action_counter, :mstrike_taken, :target, :location
+    # @!attribute action
+    #   @return [String] The current combat action (jab, punch, grapple, kick)
+    attr_accessor :action
+
+    # @!attribute position
+    #   @return [String] Current positioning status (decent, good, excellent)
+    attr_accessor :position
+
+    # @!attribute hit
+    #   @return [Boolean] Whether the last attack was a hit
+    attr_accessor :hit
+
+    # @!attribute debug
+    #   @return [Boolean] Whether debug messages are enabled
+    attr_accessor :debug
+
+    # @!attribute action_counter
+    #   @return [Hash] Counter tracking how many times each action has been used
+    attr_accessor :action_counter
+
+    # @!attribute mstrike_taken
+    #   @return [Boolean] Whether an mstrike followup opportunity is available
+    attr_accessor :mstrike_taken
+
+    # @!attribute target
+    #   @return [GameObj] The current combat target
+    attr_accessor :target
+
+    # @!attribute location
+    #   @return [String] The current aiming location (body part)
+    attr_accessor :location
   end
 
+  # Load and initialize character settings for combat configuration
+  # Sets defaults for aim, aim location, and toohigh body parts
+  #
+  # @return [void]
   def self.load_settings
     # Load all settings - tierup and tier3 must be explicitly set by user
     CharSettings['aim'] ||= false
@@ -44,6 +79,10 @@ module ECombo
     CharSettings['toohigh'] ||= nil
   end
 
+  # Display all current ecombo settings to the user
+  # Shows configured tierup, tier3, aiming options, and fallback locations
+  #
+  # @return [void]
   def self.display_current_settings
     Lich::Messaging.msg('info', "Current ecombo settings:")
     Lich::Messaging.msg('info', "  tierup: #{CharSettings['tierup']}")
@@ -53,32 +92,46 @@ module ECombo
     Lich::Messaging.msg('info', "  toohigh: #{CharSettings['toohigh'] || 'none'}")
   end
 
+  # Change the current combat action and log the change if debug is enabled
+  #
+  # @param action [String] The new action to perform (jab, punch, grapple, kick)
+  # @return [void]
   def self.change_action(action)
     self.action = action
     Lich::Messaging.msg('debug', "Action changed to #{self.action}") if self.debug
   end
 
+  # Change the current positioning status and log the change if debug is enabled
+  #
+  # @param position [String] The new positioning status (decent, good, excellent)
+  # @return [void]
   def self.change_position(position)
     self.position = position
     Lich::Messaging.msg('debug', "Position Changed to #{self.position}") if self.debug
   end
 
+  # Process and handle command-line arguments passed to the script
+  # Configures tierup, tier3, aiming settings, and displays help information
+  #
+  # @return [void]
   def self.handle_command_arguments
+    # Extract the first argument passed to the script
     command = Script.current.vars[1]
     return unless command
 
+    # Handle different command types
     case command
-    when /^tier(up|3)$/
+    when /^tier(up|3)$/ # Configure tierup or tier3 attack type
       CharSettings["tier#{$1}"] = Script.current.vars[2]
       Lich::Messaging.msg('info', "You have specified #{CharSettings["tier#{$1}"]} as your Tier#{$1} attack")
       Lich::Messaging.msg('info', "You can change this setting by typing ;#{Script.current.name} tier#{$1} <jab/punch/grapple/kick>")
       exit
-    when /^aim=(on|off)$/
+    when /^aim=(on|off)$/ # Enable or disable aiming at specific body parts
       option = Regexp.last_match(1)
       CharSettings['aim'] = option == 'on'
       Lich::Messaging.msg('info', "Turning aiming #{option}")
       exit
-    when /^toohigh$|cannot aim that high/
+    when /^toohigh$|cannot aim that high/ # Configure fallback body parts for smaller races that can't reach primary aim
       if Script.current.vars[2..-1].length.zero?
         Lich::Messaging.msg('warn', "No body parts specified")
         Lich::Messaging.msg('warn', "Try ;#{Script.current.name} help")
@@ -114,7 +167,7 @@ module ECombo
       Lich::Messaging.msg('info', "Note: Remember to use a comma to seperate the body parts")
       Lich::Messaging.msg('info')
       exit
-    when /^help$/
+    when /^help$/ # Display comprehensive help documentation
       Lich::Messaging.msg('info', "Setup your tierup and tier3 attacks by typing:  ")
       Lich::Messaging.msg('info')
       Lich::Messaging.msg('info', ";#{Script.current.name} tierup <jab/punch/grapple/kick>")
@@ -130,7 +183,12 @@ module ECombo
     end
   end
 
+  # Verify that required tierup and tier3 settings have been configured
+  # Exits with warning if settings are missing
+  #
+  # @return [void]
   def self.ensure_required_settings
+    # Check that tierup is configured
     unless CharSettings['tierup']
       Lich::Messaging.msg('warn')
       Lich::Messaging.msg('warn', 'tierup not configured.')
@@ -141,6 +199,7 @@ module ECombo
       exit
     end
 
+    # Check that tier3 is configured
     unless CharSettings['tier3']
       Lich::Messaging.msg('warn')
       Lich::Messaging.msg('warn', 'tier3 not configured.')
@@ -151,19 +210,31 @@ module ECombo
     end
   end
 
+  # Resolve a target reference, handling both NPC IDs and direct target names
+  #
+  # @param raw_target [String, nil] The target identifier or name
+  # @return [GameObj, String, nil] The resolved target object or name, or nil if not found
   def self.resolve_target(raw_target)
     return nil if raw_target.nil?
 
     return GameObj.npcs.find { |npc| "##{npc.id}" == raw_target.to_s } if raw_target.to_s.include?('#')
 
+    # Otherwise return the target name as-is
     raw_target
   end
 
+  # Acquire a target for combat, either randomly or by name
+  #
+  # @return [GameObj] The target creature or player
   def self.acquire_target
+    # TODO: use GameObj.targets...
+    # TODO: look at using Combat module to handle targeting of already tiered enemies
     if Script.current.vars.empty?
+      # Target a random enemy if no specific target provided
       put 'target random'
       line = get until line =~ /^You are now targeting <pushBold\/?>an? <a exist="(\-?\d+)" noun=".*>\.$|^Could not find a valid target\./
     else
+      # Target the specified enemy
       put "target #{Script.current.vars[0]}"
       line = get until line =~ /^Usage|^You are now targeting <pushBold\/?>an? <a exist="(\-?\d+)" noun=".*>\.$|^You do not have a target\.|You can only target creatures and players\.|You can't target/
     end
@@ -171,67 +242,98 @@ module ECombo
     GameObj[$1]
   end
 
+  # Ensure Evardis spell (506) is active for combat bonuses
+  # Automatically casts the spell if inactive or about to expire
+  #
+  # @param target [GameObj] The current combat target
+  # @return [GameObj] The target (unchanged)
   def self.ensure_evardis(target)
+    # Check if character knows Evardis spell
     return unless Spell[506].known?
 
-    if !Spell[506].active? && checkmana(6)
+    # Cast or refresh Evardis if not active and player has enough mana
+    if !Spell[506].active? && checkmana(6) # TODO: Use Spell module
       Spell[506].cast('')
     elsif Spell[506].timeleft < 0.08 && checkmana(6)
+      # Refresh spell if it's about to expire
       Spell[506].cast('')
     end
 
     target
   end
 
+  # Prepare for combat by standing and setting an offensive stance
+  #
+  # @return [void]
   def self.ready_stance
+    # Wait for any roundtime to complete
+    waitrt?
+    # Stand up if currently sitting or lying down
     fput 'stand' unless standing?
-    fput 'stance offensive' unless percentstance.zero?
+    # Set offensive stance unless already in it (percentstance.zero? means 100% offensive)
+    fput 'stance offensive' unless percentstance.zero? # TODO: Configurable stance options, not everyone wants offensive
   end
 
+  # Use quickstrike maneuver if player has sufficient stamina
+  #
+  # @return [void]
   def self.quickstrike_if_ready
-    return unless checkstamina > 40
+    # Only use quickstrike if player has stamina above 40
+    return unless checkstamina > 40 # TODO: Why this magic number?
 
     fput 'qstrike -2'
   end
 
+  # Use the Fury weapon maneuver if available and conditions are met
+  # Requires Fury knowledge, sufficient stamina, and a living target
+  #
+  # @param target [GameObj] The combat target
+  # @return [Boolean] True if fury was used, false otherwise
   def self.use_fury_if_ready(target)
     return false unless Weapon.known?('Fury') && Weapon.available?('Fury')
-    return false if Spell[9699].active? || target.status =~ /dead/
+    return false if Spell[9699].active?
+    return false if target.status =~ /dead/
 
     Lich::Messaging.msg('speech', 'Lets get Furious!') # TODO Does this have any value?
-    waitrt?
     return false unless checkstamina > 12
 
-    pause_script 'spin_kick' if running?('spin_kick')
+    pause_script 'spin_kick' if running?('spin_kick') # TODO: use Script module, but also other scripts may do this...
     ready_stance
-    fput "weapon fury ##{target.id}"
+    waitrt?
+    fput "weapon fury ##{target.id}" # TODO: use CMAN module
     while (line = get)
       break if line =~ /Distracted|recentering yourself|Your furious assault|awkward proposition|little bit late|still stunned|too injured|what?|already dead|could not find|seconds/i
-      break if target.status =~ /dead/ || !GameObj.npcs.find { |npc| "##{npc.id}" == "##{target.id}" }
+      break if target.status =~ /dead/ || !GameObj.npcs.find { |npc| "##{npc.id}" == "##{target.id}" } # TODO: Should use Targets, not npcs
     end
-    unpause_script 'spin_kick'
+    unpause_script 'spin_kick' # TODO: use Script module, but also other scripts may do this...
     true
   end
 
   def self.perform_attack(raw_target)
+    # Resolve target reference to actual target object
     target = resolve_target(raw_target)
     return if target.nil?
 
+    # Exit if target is dead
     if target.status =~ /dead/
       waitrt?
       fput 'stance defensive' if checkstance != 'defensive'
-      exit
+      exit # TODO: Exit or find a new target?  Configurable?
     end
 
     ensure_evardis(target)
+    # Prepare stance and wait for readiness
     ready_stance
 
+    # Wait for any action queue to clear
     waitrt?
     waitcastrt?
 
+    # Try fury attack first if available
     return if use_fury_if_ready(target)
 
     quickstrike_if_ready
+    # Execute attack with optional aiming
     if CharSettings['aim'] && self.action !~ /jab/
       put "#{self.action} ##{target.id} #{self.location}"
     else
@@ -239,7 +341,15 @@ module ECombo
     end
   end
 
+  # Process combat feedback lines and adjust strategy accordingly
+  # Handles positioning, followup attacks, and error conditions
+  #
+  # @param line [String] The line of combat feedback from the game
+  # @param target [GameObj] The current combat target
+  # @param locations [Array<String>] Stack of aiming locations to try
+  # @return [Symbol, nil] Returns :stop if combat should end, nil to continue
   def self.process_combat_line(line, target, locations)
+    # If an mstrike followup was taken, get the next meaningful line
     if self.mstrike_taken
       line = reget(10, /You have (decent|good|excellent) positioning|.* = .* d100: .* = \-?(\d+)$|A (hit)!$|Strike leaves foe vulnerable to a followup (.*) attack!|[wW]ait (\d+) sec.*|^What were you referring to?$/)[-1]
       self.mstrike_taken = false
@@ -247,44 +357,58 @@ module ECombo
 
     case line
     when /You have (decent|good|excellent) positioning/
+      # Update current positioning status
       change_position($1)
     when /.* = .* d100: .* = \-?(\d+)$|A (hit)!$/
+      # Process attack roll result and adjust tactics
       self.action_counter[self.action] += 1
       endroll = Regexp.last_match(1)
+      # Hit is confirmed on crits (>100) or on misses (0)
       self.hit = endroll.to_i > 100 || endroll.to_i.zero?
       Lich::Messaging.msg('debug', [self.hit, endroll.to_i].to_s) if self.debug
+      # If positioning is suboptimal and we hit, switch to jab for tier-up
       change_action('jab') if self.position != 'excellent' && self.hit
+      # Once we achieve good+ positioning, use tier3 attack
       change_action(CharSettings['tier3']) if (self.position == 'excellent' || self.position == 'good') && self.action != CharSettings['tier3']
     when /Strike leaves foe vulnerable to a followup (.*) attack!/
+      # Take advantage of mstrike opportunity by switching to suggested attack
       change_action(Regexp.last_match(1))
       Script.current.clear
       perform_attack(target)
     when /You fail to find an opening for your strike\./
+      # Continue attacking on miss
       perform_attack(target)
     when /is already missing that!|does not have a/
+      # Target location doesn't exist, try next location in stack
       self.location = locations.pop
       put 'aim clear' unless self.location
       perform_attack(target)
     when /You cannot aim that high!/
+      # Use fallback location for smaller races
       self.location = CharSettings['toohigh']
       perform_attack(target)
       locations.replace(CharSettings['aim_location'].dup)
       self.location = locations.pop
     when /Roundtime:/
+      # Roundtime received, attack is queued, continue
       Lich::Messaging.msg('debug', 'RT msg') if self.debug
       perform_attack(target)
     when /[wW]ait (\d+) sec.*/
+      # Wait message received, sleep then continue
       Lich::Messaging.msg('debug', 'WAIT msg') if self.debug
       sleep Regexp.last_match(1).to_i - 1
       Script.current.clear
       perform_attack(target)
     when /^Try standing up first\.$/
+      # Stand if knocked down
       fput 'stand'
       perform_attack(target)
     when /You currently have no valid target\.  You will need to specify one\.|^It looks like somebody already did the job for you\.$|^What were you referring to\?|Sorry,|You can't do that while entangled in a web|You are still stunned|You are unable to muster the will to attack anything\./
+      # Stop condition: target dead, no valid target, or character disabled
       return :stop
     end
 
+    # Continue combating
     nil
   end
 end
@@ -293,6 +417,7 @@ ECombo.load_settings
 ECombo.handle_command_arguments
 ECombo.ensure_required_settings
 
+# Initialize combat state variables
 put 'aim clear'
 fput 'stance off'
 ECombo.action = CharSettings['tierup']
@@ -303,6 +428,7 @@ ECombo.action_counter = Hash.new(0)
 ECombo.mstrike_taken = false
 status_tags
 
+# Acquire combat target and start fighting
 ECombo.target = ECombo.acquire_target
 
 if ECombo.target.nil?
@@ -310,13 +436,16 @@ if ECombo.target.nil?
   exit
 end
 
+# Initialize aiming stack and begin combat
 locations = CharSettings['aim_location'].dup
 ECombo.location = locations.pop
 ECombo.change_action(CharSettings['tier3']) if Spell[9620].active?
 ECombo.perform_attack(ECombo.target)
 
+# Combat loop - process incoming lines until combat ends
 while (line = get)
   break if ECombo.process_combat_line(line, ECombo.target, locations) == :stop
 end
 
+# Return to defensive stance after combat ends
 fput 'stance defensive'
