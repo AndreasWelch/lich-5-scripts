@@ -18,11 +18,15 @@
  Contributors: Moredin, Tillek, Gnomad, Tysong, Dissonance
      Category: Artisan
          Tags: forging, forge, craft, artisan, perfect
-      Version: 1.3.0
+      Version: 1.4.0
 
   Version Control:
     Major_change.feature_addition.bugfix
 
+  v1.4.0 (2026-03-06)
+    Added private forge support with configurable room numbers, entry commands,
+    supply sourcing (stop/pause/fetch modes), travel confirmation, and trash room location.
+    New GUI tab and CLI settings for private forge configuration.
   v1.3.0 (2025-12-26)
     Removed deposit all from withdrawal routine, since it deposits the note we have and resets that
     Further improved silver handling to avoid unnecessary bank trips
@@ -160,23 +164,39 @@ setup = proc {
   Gtk.queue {
     # define the tooltips for the GUI items
     ttips_text = {
-      'average_container' => "Container that will contain all your completed pieces that are not perfect\nIf left blank, average pieces will be trashed instead\n\nAverage and Keeper containers must be different!",
-      'keeper_container'  => "Container that will contain all your perfect pieces\n\nAverage and Keeper containers must be different!",
-      'oil_container'     => "Container that will contain your oil\n\nCan be left blank if you are using bronze or iron for your forging material",
-      'block_container'   => "Container that will contain your cut slab pieces\n\nMust be different than Fresh and Leftover containers",
-      'slab_container'    => "Container that will contain your fresh slabs\n\nMust be different than Cut and Leftover containers",
-      'scrap_container'   => "Container that will contain your leftover cut pieces\nIf left blank, leftover cut pieces will be trashed instead\n\nMust be different than Fresh and Cut containers",
-      'glyph_container'   => "Container that will contain your forging glyph",
-      'material_noun'     => "Noun of your forging material\nExample: bar",
-      'material_name'     => "Name of your forging material\nExample: bronze",
-      'material_no'       => "Order number of your forging material\nExample: 2",
-      'glyph_name'        => "Name of your forging glyph\nExample: blade-glyph\n\nWhen making forging hammers, use head-glyph, etc.",
-      'glyph_no'          => "The order number for the forging glyph\nExample: 44\n\nIf using the forging-hammer glyphs, leave BLANK\nOtherwise: Put 99 here.",
-      'glyph_material'    => "Custom Material of your forging glyph\nExample: wax\n\nNot applicable to forging-hammer glyphs",
-      'make_hammers'      => "Will make hammer-heads and hammer-handles from the workshop glyphs.\nSpecify handle-glyph or head-glyph above!\n\nOther glyph fields are ignored.",
-      'surge'             => "Will perform the Combat Manuever \"Surge of Strength\" at the appropriate places while forging",
-      'squelch'           => "Will remove the annoying screen scroll that happens when you perform forging actions\n\nCourtesy of Gibreficul\nTHANKS GIB!",
-      'unsafe_keepers'    => "eforgery MARKSs best pieces as unsellable by default.\nUnchek this box if you want to live dangerously (or are ranking up).",
+      'average_container'       => "Container that will contain all your completed pieces that are not perfect\nIf left blank, average pieces will be trashed instead\n\nAverage and Keeper containers must be different!",
+      'keeper_container'        => "Container that will contain all your perfect pieces\n\nAverage and Keeper containers must be different!",
+      'oil_container'           => "Container that will contain your oil\n\nCan be left blank if you are using bronze or iron for your forging material",
+      'block_container'         => "Container that will contain your cut slab pieces\n\nMust be different than Fresh and Leftover containers",
+      'slab_container'          => "Container that will contain your fresh slabs\n\nMust be different than Cut and Leftover containers",
+      'scrap_container'         => "Container that will contain your leftover cut pieces\nIf left blank, leftover cut pieces will be trashed instead\n\nMust be different than Fresh and Cut containers",
+      'glyph_container'         => "Container that will contain your forging glyph",
+      'material_noun'           => "Noun of your forging material\nExample: bar",
+      'material_name'           => "Name of your forging material\nExample: bronze",
+      'material_no'             => "Order number of your forging material\nExample: 2",
+      'glyph_name'              => "Name of your forging glyph\nExample: blade-glyph\n\nWhen making forging hammers, use head-glyph, etc.",
+      'glyph_no'                => "The order number for the forging glyph\nExample: 44\n\nIf using the forging-hammer glyphs, leave BLANK\nOtherwise: Put 99 here.",
+      'glyph_material'          => "Custom Material of your forging glyph\nExample: wax\n\nNot applicable to forging-hammer glyphs",
+      'make_hammers'            => "Will make hammer-heads and hammer-handles from the workshop glyphs.\nSpecify handle-glyph or head-glyph above!\n\nOther glyph fields are ignored.",
+      'surge'                   => "Will perform the Combat Manuever \"Surge of Strength\" at the appropriate places while forging",
+      'squelch'                 => "Will remove the annoying screen scroll that happens when you perform forging actions\n\nCourtesy of Gibreficul\nTHANKS GIB!",
+      'unsafe_keepers'          => "eforgery MARKSs best pieces as unsellable by default.\nUnchek this box if you want to live dangerously (or are ranking up).",
+      'private_forge'           => "Enable private forge mode.\nDisables NPC shop, rent, and hourglass interactions.",
+      'forge_room_entry_number' => "Room number where the property entrance is.\nUsed with go2 to navigate to the forge.\nExample: 12345",
+      'forge_entry_command'     => "Command to enter the forge from the property entrance.\nExample: go steps",
+      'workshop_room_number'    => "Room number of the front room (grinder, polisher, slab-cutter).",
+      'forge_room_number'       => "Room number of the back room (forge, trough, tongs).",
+      'trash_room_number'       => "Room number where the trash bin is located.\nMay differ from the front room in some private forges.",
+      'supply_mode'             => "What to do when supplies run out:\n  stop - exit the script\n  pause - pause for manual resupply\n  fetch - go to a storage room and retrieve\n  market_stall - buy from a player market stall",
+      'market_stall_room'       => "Room number of the market stall.",
+      'market_stall_noun'       => "Noun of the market stall (default: booth).\nExample: booth, cart, stand",
+      'allow_travel'            => "Whether the script can travel away from the forge:\n  ask - prompt before traveling\n  always - always allow (saved between sessions)\n  never - never travel away",
+      'slab_supply_room'        => "Room number where slabs are stored (fetch mode).",
+      'slab_supply_container'   => "Container/furniture to get slabs from (fetch mode).\nExample: shelf",
+      'glyph_supply_room'       => "Room number where glyphs are stored (fetch mode).",
+      'glyph_supply_container'  => "Container/furniture to get glyphs from (fetch mode).\nExample: shelf",
+      'oil_supply_room'         => "Room number where oil is stored (fetch mode).",
+      'oil_supply_container'    => "Container/furniture to get oil from (fetch mode).\nExample: shelf",
     }
 
     # Create the GUI widgets and set the default values to current settings
@@ -197,6 +217,32 @@ setup = proc {
     gtk_locals['surge'] = Gtk::CheckButton.new('Use CMan Surge of Strength'); gtk_locals['surge'].active = (settings['surge'] ||= false)
     gtk_locals['squelch'] = Gtk::CheckButton.new('Squelch Forging Screen Scroll'); gtk_locals['squelch'].active = (settings['squelch'] ||= false)
     gtk_locals['safe_keepers'] = Gtk::CheckButton.new('MARK Best Pieces as Unsellable'); gtk_locals['safe_keepers'].active = (settings['safe_keepers'] ||= false)
+
+    # Private forge widgets
+    gtk_locals['private_forge'] = Gtk::CheckButton.new('Enable Private Forge Mode'); gtk_locals['private_forge'].active = (settings['private_forge'] ||= false)
+    gtk_locals['forge_room_entry_number'] = Gtk::Entry.new; gtk_locals['forge_room_entry_number'].text = (settings['forge_room_entry_number'] ||= "")
+    gtk_locals['forge_entry_command'] = Gtk::Entry.new; gtk_locals['forge_entry_command'].text = (settings['forge_entry_command'] ||= "")
+    gtk_locals['workshop_room_number'] = Gtk::Entry.new; gtk_locals['workshop_room_number'].text = (settings['workshop_room_number'] ||= "")
+    gtk_locals['forge_room_number'] = Gtk::Entry.new; gtk_locals['forge_room_number'].text = (settings['forge_room_number'] ||= "")
+    gtk_locals['trash_room_number'] = Gtk::Entry.new; gtk_locals['trash_room_number'].text = (settings['trash_room_number'] ||= "")
+    gtk_locals['slab_supply_room'] = Gtk::Entry.new; gtk_locals['slab_supply_room'].text = (settings['slab_supply_room'] ||= "")
+    gtk_locals['slab_supply_container'] = Gtk::Entry.new; gtk_locals['slab_supply_container'].text = (settings['slab_supply_container'] ||= "")
+    gtk_locals['glyph_supply_room'] = Gtk::Entry.new; gtk_locals['glyph_supply_room'].text = (settings['glyph_supply_room'] ||= "")
+    gtk_locals['glyph_supply_container'] = Gtk::Entry.new; gtk_locals['glyph_supply_container'].text = (settings['glyph_supply_container'] ||= "")
+    gtk_locals['oil_supply_room'] = Gtk::Entry.new; gtk_locals['oil_supply_room'].text = (settings['oil_supply_room'] ||= "")
+    gtk_locals['oil_supply_container'] = Gtk::Entry.new; gtk_locals['oil_supply_container'].text = (settings['oil_supply_container'] ||= "")
+    gtk_locals['market_stall_room'] = Gtk::Entry.new; gtk_locals['market_stall_room'].text = (settings['market_stall_room'] ||= "")
+    gtk_locals['market_stall_noun'] = Gtk::Entry.new; gtk_locals['market_stall_noun'].text = (settings['market_stall_noun'] ||= "")
+
+    # ComboBox for supply_mode
+    gtk_locals['supply_mode'] = Gtk::ComboBoxText.new
+    ['stop', 'pause', 'fetch', 'market_stall'].each { |mode| gtk_locals['supply_mode'].append_text(mode) }
+    gtk_locals['supply_mode'].active = ['stop', 'pause', 'fetch', 'market_stall'].index(settings['supply_mode'] ||= "stop") || 0
+
+    # ComboBox for allow_travel
+    gtk_locals['allow_travel'] = Gtk::ComboBoxText.new
+    ['ask', 'always', 'never'].each { |mode| gtk_locals['allow_travel'].append_text(mode) }
+    gtk_locals['allow_travel'].active = ['ask', 'always', 'never'].index(settings['allow_travel'] ||= "ask") || 0
 
     # Add tooltips
     ttips_text.each_pair { |widget, tip|
@@ -324,6 +370,130 @@ setup = proc {
 
     nb.append_page(big_box, Gtk::Label.new('Setup'))
 
+    #
+    # Notebook Page 2 - Private Forge
+    #
+    vb_pg2 = Gtk::Box.new(:vertical, 1).set_border_width(3)
+
+    hb = Gtk::Box.new(:horizontal, 1)
+    hb.pack_start(gtk_locals['private_forge'].set_width_request(300), :expand => false, :fill => false, :padding => 0)
+    vb_pg2.pack_start(hb, :expand => false, :fill => false, :padding => 0)
+
+    # Container for all private forge fields - hidden when checkbox unchecked
+    pf_fields = Gtk::Box.new(:vertical, 1).set_border_width(3)
+
+    # Room Configuration
+    fr_pf_rooms = Gtk::Frame.new.set_border_width(5).set_label_widget(Gtk::Label.new.set_markup('Room Configuration'))
+    vb_pf_rooms = Gtk::Box.new(:vertical, 1).set_border_width(3)
+    fr_pf_rooms.add(vb_pf_rooms)
+    pf_fields.pack_start(fr_pf_rooms, :expand => false, :fill => false, :padding => 0)
+
+    hb = Gtk::Box.new(:horizontal, 1)
+    hb.pack_start(Gtk::Alignment.new(1, 0, 0, 1).add(Gtk::Label.new('Entry Room #:')), :expand => true, :fill => false, :padding => 0)
+    hb.pack_start(gtk_locals['forge_room_entry_number'], :expand => false, :fill => false, :padding => 0)
+    vb_pf_rooms.pack_start(hb, :expand => false, :fill => false, :padding => 0)
+
+    hb = Gtk::Box.new(:horizontal, 1)
+    hb.pack_start(Gtk::Alignment.new(1, 0, 0, 1).add(Gtk::Label.new('Entry Command:')), :expand => true, :fill => false, :padding => 0)
+    hb.pack_start(gtk_locals['forge_entry_command'], :expand => false, :fill => false, :padding => 0)
+    vb_pf_rooms.pack_start(hb, :expand => false, :fill => false, :padding => 0)
+
+    hb = Gtk::Box.new(:horizontal, 1)
+    hb.pack_start(Gtk::Alignment.new(1, 0, 0, 1).add(Gtk::Label.new('Workshop Room #:')), :expand => true, :fill => false, :padding => 0)
+    hb.pack_start(gtk_locals['workshop_room_number'], :expand => false, :fill => false, :padding => 0)
+    vb_pf_rooms.pack_start(hb, :expand => false, :fill => false, :padding => 0)
+
+    hb = Gtk::Box.new(:horizontal, 1)
+    hb.pack_start(Gtk::Alignment.new(1, 0, 0, 1).add(Gtk::Label.new('Forge Room #:')), :expand => true, :fill => false, :padding => 0)
+    hb.pack_start(gtk_locals['forge_room_number'], :expand => false, :fill => false, :padding => 0)
+    vb_pf_rooms.pack_start(hb, :expand => false, :fill => false, :padding => 0)
+
+    hb = Gtk::Box.new(:horizontal, 1)
+    hb.pack_start(Gtk::Alignment.new(1, 0, 0, 1).add(Gtk::Label.new('Trash Room #:')), :expand => true, :fill => false, :padding => 0)
+    hb.pack_start(gtk_locals['trash_room_number'], :expand => false, :fill => false, :padding => 0)
+    vb_pf_rooms.pack_start(hb, :expand => false, :fill => false, :padding => 0)
+
+    # Supply & Travel Options
+    fr_pf_supply = Gtk::Frame.new.set_border_width(5).set_label_widget(Gtk::Label.new.set_markup('Supply & Travel'))
+    vb_pf_supply = Gtk::Box.new(:vertical, 1).set_border_width(3)
+    fr_pf_supply.add(vb_pf_supply)
+    pf_fields.pack_start(fr_pf_supply, :expand => false, :fill => false, :padding => 0)
+
+    hb = Gtk::Box.new(:horizontal, 1)
+    hb.pack_start(Gtk::Alignment.new(1, 0, 0, 1).add(Gtk::Label.new('Supply Mode:')), :expand => true, :fill => false, :padding => 0)
+    hb.pack_start(gtk_locals['supply_mode'], :expand => false, :fill => false, :padding => 0)
+    vb_pf_supply.pack_start(hb, :expand => false, :fill => false, :padding => 0)
+
+    hb = Gtk::Box.new(:horizontal, 1)
+    hb.pack_start(Gtk::Alignment.new(1, 0, 0, 1).add(Gtk::Label.new('Allow Travel:')), :expand => true, :fill => false, :padding => 0)
+    hb.pack_start(gtk_locals['allow_travel'], :expand => false, :fill => false, :padding => 0)
+    vb_pf_supply.pack_start(hb, :expand => false, :fill => false, :padding => 0)
+
+    # Fetch locations (per-supply)
+    fr_pf_fetch = Gtk::Frame.new.set_border_width(5).set_label_widget(Gtk::Label.new.set_markup('Fetch Locations (for fetch mode)'))
+    vb_pf_fetch = Gtk::Box.new(:vertical, 1).set_border_width(3)
+    fr_pf_fetch.add(vb_pf_fetch)
+    pf_fields.pack_start(fr_pf_fetch, :expand => false, :fill => false, :padding => 0)
+
+    hb = Gtk::Box.new(:horizontal, 1)
+    hb.pack_start(Gtk::Alignment.new(1, 0, 0, 1).add(Gtk::Label.new('Slab Room #:')), :expand => true, :fill => false, :padding => 0)
+    hb.pack_start(gtk_locals['slab_supply_room'], :expand => false, :fill => false, :padding => 0)
+    vb_pf_fetch.pack_start(hb, :expand => false, :fill => false, :padding => 0)
+
+    hb = Gtk::Box.new(:horizontal, 1)
+    hb.pack_start(Gtk::Alignment.new(1, 0, 0, 1).add(Gtk::Label.new('Slab Container:')), :expand => true, :fill => false, :padding => 0)
+    hb.pack_start(gtk_locals['slab_supply_container'], :expand => false, :fill => false, :padding => 0)
+    vb_pf_fetch.pack_start(hb, :expand => false, :fill => false, :padding => 0)
+
+    hb = Gtk::Box.new(:horizontal, 1)
+    hb.pack_start(Gtk::Alignment.new(1, 0, 0, 1).add(Gtk::Label.new('Glyph Room #:')), :expand => true, :fill => false, :padding => 0)
+    hb.pack_start(gtk_locals['glyph_supply_room'], :expand => false, :fill => false, :padding => 0)
+    vb_pf_fetch.pack_start(hb, :expand => false, :fill => false, :padding => 0)
+
+    hb = Gtk::Box.new(:horizontal, 1)
+    hb.pack_start(Gtk::Alignment.new(1, 0, 0, 1).add(Gtk::Label.new('Glyph Container:')), :expand => true, :fill => false, :padding => 0)
+    hb.pack_start(gtk_locals['glyph_supply_container'], :expand => false, :fill => false, :padding => 0)
+    vb_pf_fetch.pack_start(hb, :expand => false, :fill => false, :padding => 0)
+
+    hb = Gtk::Box.new(:horizontal, 1)
+    hb.pack_start(Gtk::Alignment.new(1, 0, 0, 1).add(Gtk::Label.new('Oil Room #:')), :expand => true, :fill => false, :padding => 0)
+    hb.pack_start(gtk_locals['oil_supply_room'], :expand => false, :fill => false, :padding => 0)
+    vb_pf_fetch.pack_start(hb, :expand => false, :fill => false, :padding => 0)
+
+    hb = Gtk::Box.new(:horizontal, 1)
+    hb.pack_start(Gtk::Alignment.new(1, 0, 0, 1).add(Gtk::Label.new('Oil Container:')), :expand => true, :fill => false, :padding => 0)
+    hb.pack_start(gtk_locals['oil_supply_container'], :expand => false, :fill => false, :padding => 0)
+    vb_pf_fetch.pack_start(hb, :expand => false, :fill => false, :padding => 0)
+
+    # Market Stall
+    fr_pf_stall = Gtk::Frame.new.set_border_width(5).set_label_widget(Gtk::Label.new.set_markup('Market Stall (for market_stall mode)'))
+    vb_pf_stall = Gtk::Box.new(:vertical, 1).set_border_width(3)
+    fr_pf_stall.add(vb_pf_stall)
+    pf_fields.pack_start(fr_pf_stall, :expand => false, :fill => false, :padding => 0)
+
+    hb = Gtk::Box.new(:horizontal, 1)
+    hb.pack_start(Gtk::Alignment.new(1, 0, 0, 1).add(Gtk::Label.new('Stall Room #:')), :expand => true, :fill => false, :padding => 0)
+    hb.pack_start(gtk_locals['market_stall_room'], :expand => false, :fill => false, :padding => 0)
+    vb_pf_stall.pack_start(hb, :expand => false, :fill => false, :padding => 0)
+
+    hb = Gtk::Box.new(:horizontal, 1)
+    hb.pack_start(Gtk::Alignment.new(1, 0, 0, 1).add(Gtk::Label.new('Stall Noun:')), :expand => true, :fill => false, :padding => 0)
+    hb.pack_start(gtk_locals['market_stall_noun'], :expand => false, :fill => false, :padding => 0)
+    vb_pf_stall.pack_start(hb, :expand => false, :fill => false, :padding => 0)
+
+    vb_pg2.pack_start(pf_fields, :expand => false, :fill => false, :padding => 0)
+
+    # Toggle visibility of private forge fields based on checkbox
+    gtk_locals['private_forge'].signal_connect('toggled') {
+      if gtk_locals['private_forge'].active?
+        pf_fields.show
+      else
+        pf_fields.hide
+      end
+    }
+
+    nb.append_page(vb_pg2, Gtk::Label.new('Private Forge'))
+
     # Save/Close buttons
     hb_saveclose = Gtk::Box.new(:horizontal, 0)
     save = Gtk::Button.new(:label => '_Save & Close')
@@ -346,6 +516,7 @@ setup = proc {
 
     window.add(vb_main)
     window.show_all
+    pf_fields.hide unless gtk_locals['private_forge'].active?
     window.keep_above = true # On windows keep_above is required AFTER show_all
   }
 
@@ -369,6 +540,8 @@ setup = proc {
         CharSettings[option] = widget.active?
       elsif widget.class == Gtk::Entry
         CharSettings[option] = clean_entry.call(widget)
+      elsif widget.class == Gtk::ComboBoxText
+        CharSettings[option] = widget.active_text
       else
         Lich::Messaging.msg("error", "error: unknown local widget #{option} [#{widget.class}]")
       end
@@ -387,7 +560,14 @@ class << forger
                 :material_name, :slab_container, :glyph_no, :glyph_name,
                 :glyph_material, :scrap_container, :size, :keepers, :average_container,
                 :DEBUG, :rank, :afk, :afk_count, :reps, :successes, :failures, :major_failures, :trash_choice,
-                :note_size, :note, :note_names
+                :note_size, :note, :note_names,
+                :private_forge, :forge_room_entry_number, :forge_entry_command,
+                :workshop_room_number, :forge_room_number, :trash_room_number,
+                :supply_mode, :allow_travel,
+                :slab_supply_room, :slab_supply_container,
+                :glyph_supply_room, :glyph_supply_container,
+                :oil_supply_room, :oil_supply_container,
+                :market_stall_room, :market_stall_noun
 
   Rent = 300
 
@@ -493,6 +673,147 @@ class << forger
     end
   end
 
+  # Returns true if the character is currently in the workshop (front room).
+  # Uses room number in private forge mode, room name pattern in public mode.
+  def in_workshop?
+    if @private_forge
+      if @workshop_room_number.nil?
+        Lich::Messaging.msg("error", "Private forge is enabled but workshop_room_number is not configured. Run ;eforgery setup.")
+        exit
+      end
+      Room.current.id == @workshop_room_number
+    else
+      checkroom =~ /Workshop\]/
+    end
+  end
+
+  # Returns true if the character is currently in the forge (back room).
+  # Uses room number in private forge mode, room name pattern in public mode.
+  def in_forge?
+    if @private_forge
+      if @forge_room_number.nil?
+        Lich::Messaging.msg("error", "Private forge is enabled but forge_room_number is not configured. Run ;eforgery setup.")
+        exit
+      end
+      Room.current.id == @forge_room_number
+    else
+      checkroom =~ /Forge\]/
+    end
+  end
+
+  # Returns true if the character is in either the workshop or forge rooms.
+  def in_forge_area?
+    in_workshop? || in_forge?
+  end
+
+  # Navigates to the workshop (front room).
+  # In private mode: go2 entry room, then use entry command.
+  # In public mode: go2 forge, then go workshop (handled by rent).
+  def navigate_to_workshop
+    if @private_forge
+      unless in_workshop?
+        Script.run("go2", @forge_room_entry_number.to_s) unless Room.current.id == @forge_room_entry_number
+        move @forge_entry_command
+      end
+    else
+      Script.run("go2", "forge")
+    end
+  end
+
+  # Navigates to the forge (back room) via the workshop.
+  def navigate_to_forge
+    navigate_to_workshop unless in_workshop?
+    move "go door" unless in_forge?
+  end
+
+  # Prompts the user for travel confirmation when in private forge mode.
+  # Returns true if travel is allowed, false otherwise.
+  def confirm_travel(destination)
+    return true unless @private_forge
+
+    case @allow_travel
+    when "always"
+      true
+    when "never"
+      Lich::Messaging.msg("warn", "Travel to #{destination} is disabled. Set allow_travel to 'ask' or 'always' to enable.")
+      false
+    when "ask"
+      Lich::Messaging.msg("warn", "")
+      Lich::Messaging.msg("warn", "Script wants to travel to #{destination}.")
+      Lich::Messaging.msg("warn", "#{Lich::Messaging.make_cmd_link("Unpause to allow travel.", ";unpause #{Script.self}")}", encode: false)
+      Lich::Messaging.msg("warn", "")
+      Script.pause
+      true
+    else
+      true
+    end
+  end
+
+  # Navigates to the market stall, finds the item by name in the inventory listing,
+  # and buys it using the confirm-by-repeat protocol.
+  #
+  # @param item_noun [String] keyword to match against item descriptions (e.g. "rhimar", "oil")
+  # @return [void]
+  def buy_from_market_stall(item_noun)
+    Lich::Messaging.msg("info", "in buy_from_market_stall(#{item_noun})") if @DEBUG
+    unless @market_stall_room
+      Lich::Messaging.msg("error", "supply_mode is 'market_stall' but market_stall_room is not configured. Run ;eforgery setup.")
+      exit
+    end
+    Script.run("go2", @market_stall_room.to_s)
+    inv_line = dothistimeout "ask #{@market_stall_noun} about inventory", 10, /Item \d+:.*#{Regexp.escape(item_noun)}/i
+    unless inv_line && inv_line =~ /Item (\d+):/
+      Lich::Messaging.msg("error", "Could not find '#{item_noun}' in #{@market_stall_noun} inventory. Exiting.")
+      exit
+    end
+    item_number = $1
+    Lich::Messaging.msg("info", "Buying item ##{item_number} (#{item_noun}) from #{@market_stall_noun}") if @DEBUG
+    fput "ask #{@market_stall_noun} about buy #{item_number}"
+    waitfor "Repeat the command"
+    fput "ask #{@market_stall_noun} about buy #{item_number}"
+    waitfor "Thank you for your business"
+    navigate_to_workshop
+  end
+
+  # Handles supply exhaustion based on supply_mode setting.
+  # Returns true if the supply was fetched successfully (fetch mode only), false otherwise.
+  def handle_supply_exhausted(supply_name, supply_room, supply_container)
+    case @supply_mode
+    when "stop"
+      Lich::Messaging.msg("error", "Out of #{supply_name}. Exiting.")
+      exit
+    when "pause"
+      Lich::Messaging.msg("warn", "")
+      Lich::Messaging.msg("warn", "Out of #{supply_name}. Resupply and unpause.")
+      Lich::Messaging.msg("warn", "#{Lich::Messaging.make_cmd_link("Unpause Script To Continue.", ";unpause #{Script.self}")}", encode: false)
+      Lich::Messaging.msg("warn", "")
+      Script.pause
+      true
+    when "market_stall"
+      buy_from_market_stall(supply_name)
+      true
+    when "fetch"
+      if supply_room && supply_container
+        Lich::Messaging.msg("info", "Fetching #{supply_name} from room #{supply_room}...") if @DEBUG
+        Script.run("go2", supply_room.to_s)
+        fput "get #{supply_name} from #{supply_container}"
+        line = waitfor "You remove", "You grab", "Get what", "could not find"
+        if line =~ /Get what|could not find/
+          Lich::Messaging.msg("error", "Could not find #{supply_name} in #{supply_container} at room #{supply_room}. Exiting.")
+          exit
+        end
+        navigate_to_workshop
+        true
+      else
+        Lich::Messaging.msg("error", "Supply mode is 'fetch' but no room/container configured for #{supply_name}. Exiting.")
+        exit
+      end
+    else
+      Lich::Messaging.msg("error", "Out of #{supply_name}. Exiting.")
+      exit
+    end
+  end
+
   # Suppresses or filters repetitive or unimportant forge-related messages from the game server output.
   #
   # This method installs a `DownstreamHook` that processes server messages, suppressing common
@@ -578,6 +899,24 @@ class << forger
     @note               = nil
     @DEBUG              = CharSettings["debug"] || false
 
+    # Private forge settings
+    @private_forge            = CharSettings["private_forge"] || false
+    @forge_room_entry_number  = CharSettings["forge_room_entry_number"].to_i if CharSettings["forge_room_entry_number"]
+    @forge_entry_command      = CharSettings["forge_entry_command"]
+    @workshop_room_number     = CharSettings["workshop_room_number"].to_i if CharSettings["workshop_room_number"]
+    @forge_room_number        = CharSettings["forge_room_number"].to_i if CharSettings["forge_room_number"]
+    @trash_room_number        = CharSettings["trash_room_number"].to_i if CharSettings["trash_room_number"]
+    @supply_mode              = CharSettings["supply_mode"] || "stop"
+    @allow_travel             = CharSettings["allow_travel"] || "ask"
+    @slab_supply_room         = CharSettings["slab_supply_room"].to_i if CharSettings["slab_supply_room"]
+    @slab_supply_container    = CharSettings["slab_supply_container"]
+    @glyph_supply_room        = CharSettings["glyph_supply_room"].to_i if CharSettings["glyph_supply_room"]
+    @glyph_supply_container   = CharSettings["glyph_supply_container"]
+    @oil_supply_room          = CharSettings["oil_supply_room"].to_i if CharSettings["oil_supply_room"]
+    @oil_supply_container     = CharSettings["oil_supply_container"]
+    @market_stall_room        = CharSettings["market_stall_room"].to_i if CharSettings["market_stall_room"]
+    @market_stall_noun        = CharSettings["market_stall_noun"] || "booth"
+
     Lich::Messaging.msg("info", "In Setup") if @DEBUG
 
     if @note_size == nil || @note_size == 0 then
@@ -595,10 +934,14 @@ class << forger
 
     before_dying { breakdown }
 
-    find_wastebin
+    find_wastebin unless @private_forge
     wear_apron
     empty_hands
-    rent
+    if @private_forge
+      navigate_to_workshop
+    else
+      rent
+    end
   end
 
   # Attempts to withdraw the specified amount of silver.
@@ -627,11 +970,22 @@ class << forger
     Lich::Messaging.msg("info", "Current silver: #{Util.silver_count}") if @DEBUG
     return if Util.silver_count >= silver_needed # already have enough silver to fulfill request
 
+    if @private_forge
+      unless confirm_travel("bank")
+        Lich::Messaging.msg("error", "Cannot travel to bank. Need #{silver_needed} silver. Exiting.")
+        exit
+      end
+    end
+
     waitrt?
 
     Script.run("go2", "bank")
     withdraw(silver_needed)
-    Script.run("go2", "forge")
+    if @private_forge
+      navigate_to_workshop
+    else
+      Script.run("go2", "forge")
+    end
   end
 
   # Executes a command and collects output lines until no roundtime delay is present.
@@ -725,9 +1079,13 @@ class << forger
     @note = [GameObj.right_hand, GameObj.left_hand].find { |i| @note_names.any? { |s| s.include?(i.name) } }
 
     # while we are here, we may as well get rent money since we just deposited everything
-    withdraw(Rent)
+    withdraw(Rent) unless @private_forge
 
-    Script.run("go2", "forge")
+    if @private_forge
+      navigate_to_workshop
+    else
+      Script.run("go2", "forge")
+    end
   end
 
   # Stows any promissory note currently held in either hand.
@@ -765,7 +1123,14 @@ class << forger
   # @return [void]
   def get_glyph
     Lich::Messaging.msg("info", "in get_glyph") if @DEBUG
-    if @glyph_container && @glyph_no && @glyph_name && @glyph_material
+    if @private_forge
+      if @glyph_container && @glyph_name
+        unless you_get(@glyph_name, @glyph_container)
+          handle_supply_exhausted(@glyph_name, @glyph_supply_room, @glyph_supply_container)
+          you_put(@glyph_name, @glyph_container) if checkleft =~ /glyph/ || checkright =~ /glyph/
+        end
+      end
+    elsif @glyph_container && @glyph_no && @glyph_name && @glyph_material
       move "out"
       buy(@glyph_no, @glyph_material)
       you_put(@glyph_name, @glyph_container)
@@ -790,6 +1155,10 @@ class << forger
   # @return [void]
   def buy(item, material = nil)
     Lich::Messaging.msg("info", "in buy(#{item}, #{material})") if @DEBUG
+    if @private_forge
+      Lich::Messaging.msg("error", "Buy called in private forge mode — no shop available. Exiting.")
+      exit
+    end
     line = ""
     until line =~ /hands you/
       if material
@@ -849,11 +1218,15 @@ class << forger
   # @return [void]
   def rent
     Lich::Messaging.msg("info", "in rent") if @DEBUG
-    if checkroom !~ /Workshop\]/
-      fput "go workshop"
-      if (waitfor "rentals", "remaining", "collects") =~ /You don\'t have enough silver, rentals are 300 silver\./
-        bank(Rent) # rent requires silvers specifically
-        move "go workshop"
+    if @private_forge
+      navigate_to_workshop unless in_workshop?
+    else
+      unless in_workshop?
+        fput "go workshop"
+        if (waitfor "rentals", "remaining", "collects") =~ /You don\'t have enough silver, rentals are 300 silver\./
+          bank(Rent) # rent requires silvers specifically
+          move "go workshop"
+        end
       end
     end
   end
@@ -888,8 +1261,11 @@ class << forger
   # @return [void]
   def tongs
     Lich::Messaging.msg("info", "in tongs") if @DEBUG
+    if @DEBUG
+      Lich::Messaging.msg("info", "[tongs] room=#{Room.current.id} forge_room=#{@forge_room_number.inspect} workshop_room=#{@workshop_room_number.inspect} in_forge?=#{in_forge?} in_workshop?=#{in_workshop?}")
+    end
     waitrt?
-    move "go door"
+    move "go door" unless in_forge?
     oil
     done = false
     line = ""
@@ -911,15 +1287,20 @@ class << forger
       elsif line =~ /hammer in your right/
         hammer_time
       elsif line =~ /tongs to the anvil|has not been scribed/
+        Lich::Messaging.msg("info", "[tongs] branch: tongs-to-anvil/scribed, room=#{Room.current.id}") if @DEBUG
         done = true
         move "go door"
         fput "wear my forging"
         glyph
       elsif line =~ /expired/
-        multimove "go door", "out"
-        rent
+        Lich::Messaging.msg("info", "[tongs] branch: expired, room=#{Room.current.id}") if @DEBUG
+        unless @private_forge
+          multimove "go door", "out"
+          rent
+        end
         move "go door"
       elsif line =~ /best work/
+        Lich::Messaging.msg("info", "[tongs] branch: best-work, room=#{Room.current.id}") if @DEBUG
         @reps += 1
         done = true
         fput "wear my forging"
@@ -930,6 +1311,7 @@ class << forger
           keeper
         end
       elsif line =~ /into the tempering trough/
+        Lich::Messaging.msg("info", "[tongs] branch: into-trough, room=#{Room.current.id}") if @DEBUG
         @reps += 1
         done = true
         fput "wear my forging"
@@ -940,6 +1322,7 @@ class << forger
           average
         end
       elsif line =~ /hanging crystal and spreads/ # |grinding wheel chews/ ????
+        Lich::Messaging.msg("info", "[tongs] branch: hanging-crystal, room=#{Room.current.id}") if @DEBUG
         @reps += 1
         @failures += 1
         fput "wear my forging"
@@ -947,11 +1330,13 @@ class << forger
         trash(checkleft)
         done = true
       else
+        Lich::Messaging.msg("info", "[tongs] branch: else (more work), line=#{line.inspect}, room=#{Room.current.id}") if @DEBUG
         @reps += 1
       end
     end
 
     if line !~ /hanging crystal and spreads across|into the tempering trough|grinding wheel chews into|best work|tongs to the anvil/
+      Lich::Messaging.msg("info", "[tongs] post-loop move, line=#{line.inspect}, room=#{Room.current.id}") if @DEBUG
       fput "wear forging"
       move "go door"
     end
@@ -970,19 +1355,35 @@ class << forger
     Lich::Messaging.msg("info", "in buy_oil") if @DEBUG
     waitrt?
     fput "wear forging" if checkright =~ /forging-hammer/ && !(checkleft and checkright).nil?
-    multimove "go door", "out"
-    if @oil_container
-      you_put("slab", @block_container)
-      buy(Oil_Order[Material_Oil[@material_name]])
-      you_put("oil", @oil_container)
-      clear_note
-      you_get("slab", @block_container)
-      fput "swap"
-      rent
-      move "go door"
+    if @private_forge
+      if @oil_container
+        handle_supply_exhausted("oil", @oil_supply_room, @oil_supply_container)
+        # after resupply, try to get oil from container
+        unless you_get("oil", @oil_container)
+          Lich::Messaging.msg("error", "Still no oil available after resupply. Exiting.")
+          exit
+        end
+        navigate_to_forge
+        fput "pour oil in trough" until !(checkright =~ /oil/ or checkleft =~ /oil/)
+      else
+        Lich::Messaging.msg("error", "No oil container set. Run ;eforgery setup.")
+        exit
+      end
     else
-      Lich::Messaging.msg("error", "No oil container set. Run ;eforgery setup.")
-      exit
+      multimove "go door", "out"
+      if @oil_container
+        you_put("slab", @block_container)
+        buy(Oil_Order[Material_Oil[@material_name]])
+        you_put("oil", @oil_container)
+        clear_note
+        you_get("slab", @block_container)
+        fput "swap"
+        rent
+        move "go door"
+      else
+        Lich::Messaging.msg("error", "No oil container set. Run ;eforgery setup.")
+        exit
+      end
     end
   end
 
@@ -1078,7 +1479,14 @@ class << forger
   def get_slab # gets a raw slab from container (or merchant) and puts it in your left hand
     Lich::Messaging.msg("info", "in get_slab") if @DEBUG
     unless you_get(@material_noun, @slab_container)
-      if checkright != "iron"
+      if @private_forge
+        handle_supply_exhausted(@material_noun, @slab_supply_room, @slab_supply_container)
+        # after resupply (pause or fetch), try again
+        unless you_get(@material_noun, @slab_container)
+          Lich::Messaging.msg("error", "Still no #{@material_noun} available after resupply. Exiting.")
+          exit
+        end
+      elsif checkright != "iron"
         Lich::Messaging.msg("info", "buying slab") if @DEBUG
         move "out"
         buy(@material_no)
@@ -1120,6 +1528,7 @@ class << forger
         fput "close #{container}" if closed
       else
         Lich::Messaging.msg("info", "item found in hand") if @DEBUG
+        return true
       end
     else
       Lich::Messaging.msg("info", "container doesn't exist") if @DEBUG
@@ -1235,7 +1644,7 @@ class << forger
   # @return [void]
   def cut(target_size, pieces = nil) # target_size is @size variable saved from earlier when measuring glyph
     Lich::Messaging.msg("info", "in cut(#{target_size}, #{pieces})") if @DEBUG
-    rent unless checkroom =~ /Workshop/
+    rent unless in_workshop?
     left = right = 0
     if pieces # #ONLY true when using the manual ;eforgery cut <#>
       Lich::Messaging.msg("info", "cut: pieces #{pieces}") if @DEBUG
@@ -1433,7 +1842,7 @@ class << forger
       Lich::Messaging.msg("info", "")
       Lich::Messaging.msg("info", "It looks like #{item.name} needs polishing.")
       Lich::Messaging.msg("info", "")
-      unless checkroom =~ /Workshop/
+      unless in_workshop?
         move "go door"
       end
       fput "get ##{item.id} from ##{container.id}"
@@ -1442,8 +1851,10 @@ class << forger
       line = waitfor "rent on this workshop has expired", "You give the polishing wheel a shove"
       waitrt?
       if line =~ /rent on this workshop has expired/
-        move "out"
-        rent
+        unless @private_forge
+          move "out"
+          rent
+        end
         fput "lean polisher"
         waitfor "You straighten up from working at the polishing wheel"
       elsif line =~ /You give the polishing wheel a shove/
@@ -1480,6 +1891,10 @@ class << forger
   # @return [void]
   def get_apron
     Lich::Messaging.msg("info", "in get_apron") if @DEBUG
+    if @private_forge
+      Lich::Messaging.msg("error", "No apron found. Please get an apron manually and restart.")
+      exit
+    end
     fput "stow all"
     bank(1000)
     buy(1)
@@ -1507,7 +1922,9 @@ class << forger
     afk_wait if @afk unless line == 'The grinding wheel doesn\'t budge!  Most likely the rent on this workshop has expired.'
     if line =~ /doesn't budge!/
       you_put(@material_noun, @block_container)
-      move "out"
+      unless @private_forge
+        move "out"
+      end
       rent
     elsif line =~ /Resignedly, you get/
       @failures += 1
@@ -1597,7 +2014,22 @@ class << forger
   def trash(item)
     Lich::Messaging.msg("info", "in trash(#{item})") if @DEBUG
     waitrt?
-    if checkname =~ /Forge/
+    if @private_forge
+      if @trash_room_number
+        # Navigate to trash room if not already there
+        unless Room.current.id == @trash_room_number
+          move "go door" if in_forge?
+          Script.run("go2", @trash_room_number.to_s) unless Room.current.id == @trash_room_number
+        end
+        fput "trash my #{item}"
+        navigate_to_workshop unless in_workshop?
+      else
+        # No dedicated trash room — move to workshop if in forge, then trash there
+        move "go door" if in_forge?
+        fput "trash my #{item}"
+        # Do NOT move back to forge — stay in workshop
+      end
+    elsif checkname =~ /Forge/
       move "go door"
       fput "trash my #{item}"
       move "go door"
@@ -1626,10 +2058,18 @@ class << forger
         line = waitfor "You put", "You tuck", "It's closed", "won't fit"
         if line =~ /fit/
           fput "look in my #{@scrap_container}"
-          unless checkroom =~ /Workshop/
+          unless in_workshop?
             move "go door"
           end
-          move "out"
+          if @private_forge
+            unless confirm_travel("pawnshop")
+              Lich::Messaging.msg("warn", "Travel denied. Trashing scrap instead.")
+              fput "trash ##{item.id}"
+              fput "drop ##{item.id}" if (GameObj.left_hand.id == item.id || GameObj.right_hand.id == item.id)
+              next
+            end
+          end
+          move "out" unless @private_forge
           Script.run("go2", "pawnshop")
           fput "sell ##{item.id}"
           line = waitfor "then hands you", "basically worthless here", "hands it back to you"
@@ -1638,8 +2078,12 @@ class << forger
             box.contents.select { |obj| obj.name =~ /#{@material_name} slab/ }.each { |obj| multifput "get ##{obj.id}", "sell ##{obj.id}" }
 
             donescrapping = true
-            Script.run("go2", "forge")
-            rent
+            if @private_forge
+              navigate_to_workshop
+            else
+              Script.run("go2", "forge")
+              rent
+            end
           elsif line =~ /worthless|hands it back to you/
             fput "trash ##{item.id}" # try to trash it, otherwise drop it
             fput "drop ##{item.id}" if (GameObj.left_hand.id == item.id || GameObj.right_hand.id == item.id)
@@ -1670,7 +2114,7 @@ class << forger
   # @return [void]
   def breakdown
     Lich::Messaging.msg("info", "in breakdown") if @DEBUG
-    salvage_oil if checkroom =~ /Forge\]/
+    salvage_oil if in_forge?
     print_stats
   end
 
@@ -1730,6 +2174,22 @@ class << forger
     Lich::Messaging.mono(Lich::Messaging.xml_encode("  #{$clean_lich_char}#{Script.self} display                   <= display the current Settings                                  "))
 
     Lich::Messaging.mono("")
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("PRIVATE FORGE SETTINGS (enable with: set private_forge true):"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  #{$clean_lich_char}#{Script.self} set private_forge <true/false>           <= enable/disable private forge mode"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  #{$clean_lich_char}#{Script.self} set forge_room_entry_number <room#>      <= room number of property entrance"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  #{$clean_lich_char}#{Script.self} set forge_entry_command <command>         <= command to enter forge (e.g. go steps)"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  #{$clean_lich_char}#{Script.self} set workshop_room_number <room#>         <= room number of workshop (front room)"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  #{$clean_lich_char}#{Script.self} set forge_room_number <room#>            <= room number of forge (back room)"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  #{$clean_lich_char}#{Script.self} set trash_room_number <room#>            <= room number where trash bin is"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  #{$clean_lich_char}#{Script.self} set supply_mode <stop/pause/fetch/market_stall>  <= what to do when supplies run out"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  #{$clean_lich_char}#{Script.self} set allow_travel <ask/always/never>             <= travel confirmation for away trips"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  #{$clean_lich_char}#{Script.self} set slab_supply <room#> <container>             <= fetch location for slabs"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  #{$clean_lich_char}#{Script.self} set glyph_supply <room#> <container>            <= fetch location for glyphs"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  #{$clean_lich_char}#{Script.self} set oil_supply <room#> <container>              <= fetch location for oil"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  #{$clean_lich_char}#{Script.self} set market_stall_room <room#>                   <= room number of market stall"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  #{$clean_lich_char}#{Script.self} set market_stall_noun <noun>                    <= stall noun (default: booth)"))
+
+    Lich::Messaging.mono("")
     Lich::Messaging.mono(Lich::Messaging.xml_encode("IMPORTANT NOTES ABOUT SETUP:"))
     Lich::Messaging.mono(Lich::Messaging.xml_encode("  Block, Slab, Scrap, Keeper containers MUST be different.                                             "))
     Lich::Messaging.mono(Lich::Messaging.xml_encode("  If keeping 'Average' pieces, container should be different from 'Keeper' container.                  "))
@@ -1773,10 +2233,12 @@ when nil, 'afk'
     forger.afk_count = script.vars[2].to_i > 0 ? script.vars[2].to_i : 2
   end
   waitrt?
-  if checkroom !~ /(Forge|Workshop)\]/
-    Script.run("go2", "forge")
-  elsif checkroom =~ /Forge\]/
-    move 'go door'
+  unless CharSettings["private_forge"]
+    if checkroom !~ /(Forge|Workshop)\]/
+      Script.run("go2", "forge")
+    elsif checkroom =~ /Forge\]/
+      move 'go door'
+    end
   end
   forger.setup
   forger.prepare
@@ -1794,10 +2256,12 @@ when 'rank'
     forger.afk_count = script.vars[3].to_i > 0 ? script.vars[3].to_i : 2
   end
   waitrt?
-  if checkroom !~ /(Forge|Workshop)\]/
-    Script.run("go2", "forge")
-  elsif checkroom =~ /Forge\]/
-    move 'go door'
+  unless CharSettings["private_forge"]
+    if checkroom !~ /(Forge|Workshop)\]/
+      Script.run("go2", "forge")
+    elsif checkroom =~ /Forge\]/
+      move 'go door'
+    end
   end
   forger.setup
   forger.prepare
@@ -1809,10 +2273,12 @@ when 'rank'
   }
 when "forge"
   waitrt?
-  if checkroom !~ /(Forge|Workshop)\]/
-    Script.run("go2", "forge")
-  elsif checkroom =~ /Forge\]/
-    move 'go door'
+  unless CharSettings["private_forge"]
+    if checkroom !~ /(Forge|Workshop)\]/
+      Script.run("go2", "forge")
+    elsif checkroom =~ /Forge\]/
+      move 'go door'
+    end
   end
   forger.setup
   forger.prepare
@@ -1830,10 +2296,12 @@ when "forge"
   end
 when "polish"
   waitrt?
-  if checkroom !~ /(Forge|Workshop)\]/
-    Script.run("go2", "forge")
-  elsif checkroom =~ /Forge\]/
-    move 'go door'
+  unless CharSettings["private_forge"]
+    if checkroom !~ /(Forge|Workshop)\]/
+      Script.run("go2", "forge")
+    elsif checkroom =~ /Forge\]/
+      move 'go door'
+    end
   end
   forger.setup
   fput "look in my #{@average_container}" if @average_container
@@ -1843,10 +2311,12 @@ when "polish"
   forger.polish
 when "cut"
   waitrt?
-  if checkroom !~ /(Forge|Workshop)\]/
-    Script.run("go2", "forge")
-  elsif checkroom =~ /Forge\]/
-    move 'go door'
+  unless CharSettings["private_forge"]
+    if checkroom !~ /(Forge|Workshop)\]/
+      Script.run("go2", "forge")
+    elsif checkroom =~ /Forge\]/
+      move 'go door'
+    end
   end
   forger.setup
   fput "inventory"
@@ -1860,10 +2330,12 @@ when "keepers"
   fput "look in my #{@keeper_container}" if @keeper_container
   fput "inventory"
   waitrt?
-  if checkroom !~ /(Forge|Workshop)\]/
-    Script.run("go2", "forge")
-  elsif checkroom =~ /Forge\]/
-    move 'go door'
+  unless CharSettings["private_forge"]
+    if checkroom !~ /(Forge|Workshop)\]/
+      Script.run("go2", "forge")
+    elsif checkroom =~ /Forge\]/
+      move 'go door'
+    end
   end
   forger.setup
   forger.prepare
@@ -1884,6 +2356,22 @@ when "display"
   Lich::Messaging.mono(Lich::Messaging.xml_encode("make_hammers        =>  #{CharSettings["make_hammers"]}        "))
   Lich::Messaging.mono(Lich::Messaging.xml_encode("surge               =>  #{CharSettings["surge"]}               "))
   Lich::Messaging.mono(Lich::Messaging.xml_encode("squelch             =>  #{CharSettings["squelch"]}             "))
+  Lich::Messaging.mono("")
+  Lich::Messaging.mono(Lich::Messaging.xml_encode("private_forge       =>  #{CharSettings["private_forge"]}       "))
+  if CharSettings["private_forge"]
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  forge_room_entry_number  =>  #{CharSettings["forge_room_entry_number"]}"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  forge_entry_command      =>  #{CharSettings["forge_entry_command"]}"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  workshop_room_number     =>  #{CharSettings["workshop_room_number"]}"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  forge_room_number        =>  #{CharSettings["forge_room_number"]}"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  trash_room_number        =>  #{CharSettings["trash_room_number"]}"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  supply_mode              =>  #{CharSettings["supply_mode"]}"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  allow_travel             =>  #{CharSettings["allow_travel"]}"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  slab_supply (room, container)   =>  #{CharSettings["slab_supply_room"]} #{CharSettings["slab_supply_container"]}"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  glyph_supply (room, container)  =>  #{CharSettings["glyph_supply_room"]} #{CharSettings["glyph_supply_container"]}"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  oil_supply (room, container)    =>  #{CharSettings["oil_supply_room"]} #{CharSettings["oil_supply_container"]}"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  market_stall_room        =>  #{CharSettings["market_stall_room"]}"))
+    Lich::Messaging.mono(Lich::Messaging.xml_encode("  market_stall_noun        =>  #{CharSettings["market_stall_noun"] || "booth"}"))
+  end
   Lich::Messaging.mono("")
   Lich::Messaging.mono(Lich::Messaging.xml_encode("IMPORTANT:"))
   Lich::Messaging.mono(Lich::Messaging.xml_encode("   #{$clean_lich_char}#{Script.self} set <setting> <whatever>    for details type  #{$clean_lich_char}#{Script.self} help"))
@@ -1932,6 +2420,56 @@ when "set"
     Lich::Messaging.msg("info", "Settings saved!")
   when "debug"
     CharSettings["debug"] = script.vars[3]
+    Lich::Messaging.msg("info", "Settings saved!")
+  when "private_forge"
+    CharSettings["private_forge"] = (script.vars[3] =~ /true/i ? true : false)
+    Lich::Messaging.msg("info", "Settings saved!")
+  when "forge_room_entry_number"
+    CharSettings["forge_room_entry_number"] = script.vars[3]
+    Lich::Messaging.msg("info", "Settings saved!")
+  when "forge_entry_command"
+    CharSettings["forge_entry_command"] = script.vars[3..-1].join(" ") if script.vars[3]
+    Lich::Messaging.msg("info", "Settings saved!")
+  when "workshop_room_number"
+    CharSettings["workshop_room_number"] = script.vars[3]
+    Lich::Messaging.msg("info", "Settings saved!")
+  when "forge_room_number"
+    CharSettings["forge_room_number"] = script.vars[3]
+    Lich::Messaging.msg("info", "Settings saved!")
+  when "trash_room_number"
+    CharSettings["trash_room_number"] = script.vars[3]
+    Lich::Messaging.msg("info", "Settings saved!")
+  when "supply_mode"
+    if script.vars[3] =~ /^(stop|pause|fetch|market_stall)$/i
+      CharSettings["supply_mode"] = script.vars[3].downcase
+      Lich::Messaging.msg("info", "Settings saved!")
+    else
+      Lich::Messaging.msg("error", "supply_mode must be: stop, pause, fetch, or market_stall")
+    end
+  when "allow_travel"
+    if script.vars[3] =~ /^(ask|always|never)$/i
+      CharSettings["allow_travel"] = script.vars[3].downcase
+      Lich::Messaging.msg("info", "Settings saved!")
+    else
+      Lich::Messaging.msg("error", "allow_travel must be: ask, always, or never")
+    end
+  when "slab_supply"
+    CharSettings["slab_supply_room"] = script.vars[3]
+    CharSettings["slab_supply_container"] = script.vars[4]
+    Lich::Messaging.msg("info", "Settings saved!")
+  when "glyph_supply"
+    CharSettings["glyph_supply_room"] = script.vars[3]
+    CharSettings["glyph_supply_container"] = script.vars[4]
+    Lich::Messaging.msg("info", "Settings saved!")
+  when "oil_supply"
+    CharSettings["oil_supply_room"] = script.vars[3]
+    CharSettings["oil_supply_container"] = script.vars[4]
+    Lich::Messaging.msg("info", "Settings saved!")
+  when "market_stall_room"
+    CharSettings["market_stall_room"] = script.vars[3]
+    Lich::Messaging.msg("info", "Settings saved!")
+  when "market_stall_noun"
+    CharSettings["market_stall_noun"] = script.vars[3]
     Lich::Messaging.msg("info", "Settings saved!")
   else
     forger.usage
